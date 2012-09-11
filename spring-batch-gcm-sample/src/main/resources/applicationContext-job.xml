@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:batch="http://www.springframework.org/schema/batch" 
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+					http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc.xsd
+					http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+					http://www.springframework.org/schema/batch http://www.springframework.org/schema/batch/spring-batch.xsd"
+					default-lazy-init="true">
+		
+ 	<!-- In-Memory JobRepository -->
+ 	<bean id="jobRepository" class="org.springframework.batch.core.repository.support.MapJobRepositoryFactoryBean">
+   		<property name="transactionManager" ref="batch-gcm.txManager.rscless" />
+ 	</bean>
+ 	
+ 	<!-- JobLauncher -->
+	<bean id="jobLauncher" class="org.springframework.batch.core.launch.support.SimpleJobLauncher">
+   		<property name="jobRepository" ref="jobRepository" />
+ 	</bean>
+ 	
+ 	<!-- TxManager -->
+ 	<bean id="batch-gcm.txManager.rscless" class="org.springframework.batch.support.transaction.ResourcelessTransactionManager" >
+ 	</bean>
+ 	
+ 	<!-- Token Reader (See JdbcCursorItemReader pour BDD) -->
+ 	<bean id="batch-gcm.reader" class="org.springframework.batch.item.file.FlatFileItemReader">
+    	<property name="lineMapper">
+    		<bean class="org.springframework.batch.item.file.mapping.PassThroughLineMapper" />
+    	</property>
+    	<property name="resource" value="classpath:tokens.txt" />
+	</bean>
+	
+	<!-- Exemple d'envoi par paquet -->
+	<bean id="batch-gcm.writer" class="com.octo.samples.gcm.writer.NotificationItemWriter" />
+	
+ 	<!-- JOB -->
+ 	<batch:job id="batch-gcm.mainJob" >
+        <batch:step id="batch-gcm.step.sendNotifications" >
+            <batch:tasklet transaction-manager="batch-gcm.txManager.rscless">
+				<batch:chunk reader="batch-gcm.reader"
+							 writer="batch-gcm.writer"
+				 			 commit-interval="2" skip-limit="1">
+					<batch:skippable-exception-classes>
+						<batch:include class="org.springframework.batch.item.file.FlatFileParseException" />
+					</batch:skippable-exception-classes>
+				</batch:chunk>
+			</batch:tasklet>
+        </batch:step>
+    </batch:job>
+
+</beans>
